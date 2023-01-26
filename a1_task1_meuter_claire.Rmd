@@ -1,0 +1,61 @@
+---
+title: "a1_task1_meuter_claire"
+author: "Claire Meuter"
+date: "2023-01-26"
+output: html_document
+---
+
+```{r setup, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(here)
+library(lubridate)
+library(janitor)
+library(ggplot2)
+```
+
+```{r}
+#read in the data
+sierra_amp <- read_csv(here("sierra_amphibians.csv"))
+```
+#A graph of total mountain yellow-legged frog (Rana muscosa) count each year across all water bodies, by life stage excluding the ‘EggMass’ level. In other words, you should find the total number of adult, subadult, and tadpole yellow-legged frogs observed in the entire study region by life stage and year, but you will not use the lake ID or amphibian_location in your analyses as additional grouping variables. Hint: Convert the date to a date with the {lubridate} package, then pull just the year using the lubridate::year() function...then you can group by year to get counts. 
+```{r}
+#view class of our date column
+class(sierra_amp$survey_date)
+#this tells me it's a character, but we need it in date format
+sierra_amp$survey_date <- mdy(sierra_amp$survey_date)
+
+#Now check out the class again
+class(sierra_amp$survey_date)
+#cool, now it's in date, so we can use the year function
+
+sierra_amp$survey_date <- year(sierra_amp$survey_date)
+
+#cool, now sierra_amp only has year in survery_date column
+```
+
+#Now I'm going to clean the data to only include mountain yellow-legged frog (Rana muscosa) and exclude life stage  ‘EggMass’ level
+```{r}
+#from reading the metadata I know Rana muscosa is code RAMU
+#I'm also 
+rana_sierra <- sierra_amp %>%
+  filter(amphibian_species == "RAMU") %>% 
+  filter(amphibian_life_stage != "EggMass")
+#now I only have Rana muscosa and no Eggmass life stage in my data set 
+
+#use group by and summarize to find counts 
+rana_count <- rana_sierra %>% group_by(survey_date) %>% 
+  count(amphibian_life_stage)
+
+#Now I'll make a graph 
+ggplot(rana_count, aes(fill=amphibian_life_stage, y= n, x=survey_date)) + scale_x_continuous(breaks = seq(from = 1995, to = 2002, by = 1)) + #making x axis annual with every year showing up 
+    geom_bar(position="dodge", stat="identity") + labs(y = "Count", x = "Survey Year", title = "Count of Mountain yellow-legged frog (Rana muscosa) by Life Stage", fill = "Life Stage") + theme_minimal()
+```
+## I'll add a figure caption here later 
+
+
+### A column graph containing total counts (over all years of the study) of combined adult and subadult endangered mountain yellow-legged frogs (Rana muscosa) observed in the 5 lakes with the greatest total observed counts. In other words, this graph will have at least 5 columns (OK to have more if there are ties), with Lake ID (these aren’t specified in the dataset for confidentiality) as the categorical label on one axis, and total yellow-legged frog counts (adult + subadult counts) in the dataset on the other axis. Make sure they’re in high-to-low or low-to-high order by total yellow-legged frog counts. You should exclude tadpoles for this graph. Note: Consider reformatting the lake ID from just a number to a label like “Lake 10025”), then use fct_reorder to convert it to an ordered factor.
+```{r}
+
+```
+
