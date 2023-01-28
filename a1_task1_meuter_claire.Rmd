@@ -37,18 +37,20 @@ sierra_amp$survey_date <- year(sierra_amp$survey_date)
 #Now I'm going to clean the data to only include mountain yellow-legged frog (Rana muscosa) and exclude life stage  ‘EggMass’ level
 ```{r}
 #from reading the metadata I know Rana muscosa is code RAMU
-#I'm also 
-rana_sierra <- sierra_amp %>%
-  filter(amphibian_species == "RAMU") %>% 
-  filter(amphibian_life_stage != "EggMass")
-#now I only have Rana muscosa and no Eggmass life stage in my data set 
 
-#use group by and summarize to find counts 
-rana_count <- rana_sierra %>% group_by(survey_date) %>% 
-  count(amphibian_life_stage)
+rana_sierra <- sierra_amp %>%
+  filter(amphibian_species == "RAMU") %>% #filtering for only RAMU
+  filter(amphibian_life_stage != "EggMass") #dropping eggmass 
+ 
+
+#use group by and summarise_at to find counts 
+rana_count <- rana_sierra %>% 
+  group_by(survey_date, amphibian_life_stage) %>% 
+  summarise_at(vars(amphibian_number), #summing amphibian number column using survey_date and lifestage
+               list(count=sum))
 
 #Now I'll make a graph 
-ggplot(rana_count, aes(fill=amphibian_life_stage, y= n, x=survey_date)) + scale_x_continuous(breaks = seq(from = 1995, to = 2002, by = 1)) + #making x axis annual with every year showing up 
+ggplot(rana_count, aes(fill=amphibian_life_stage, y= count, x=survey_date)) + scale_x_continuous(breaks = seq(from = 1995, to = 2002, by = 1)) + #making x axis annual with every year showing up 
     geom_bar(position="dodge", stat="identity") + labs(y = "Count", x = "Survey Year", title = "Count of Mountain yellow-legged frog (Rana muscosa) by Life Stage", fill = "Life Stage") + theme_minimal()
 ```
 ## I'll add a figure caption here later 
@@ -56,6 +58,35 @@ ggplot(rana_count, aes(fill=amphibian_life_stage, y= n, x=survey_date)) + scale_
 
 ### A column graph containing total counts (over all years of the study) of combined adult and subadult endangered mountain yellow-legged frogs (Rana muscosa) observed in the 5 lakes with the greatest total observed counts. In other words, this graph will have at least 5 columns (OK to have more if there are ties), with Lake ID (these aren’t specified in the dataset for confidentiality) as the categorical label on one axis, and total yellow-legged frog counts (adult + subadult counts) in the dataset on the other axis. Make sure they’re in high-to-low or low-to-high order by total yellow-legged frog counts. You should exclude tadpoles for this graph. Note: Consider reformatting the lake ID from just a number to a label like “Lake 10025”), then use fct_reorder to convert it to an ordered factor.
 ```{r}
+#First I need to do some data wrangling to get my data ready to graph. I can use the rana_sierra dataset. Then I need to exclude tadpoles from the data, make sure survey date is being read as categorical, and reformate if not. Next, I need to sum the amphibian_number by lake_id, and keep the 5 lakes that had to most frog counts. 
 
+class(rana_sierra$lake_id)
+#right now, class of lake_id is numeric, which I'll want to change
+
+#making new dataset 
+rana_frogs <- rana_sierra %>% 
+  filter(amphibian_life_stage != "Tadpole") %>% # getting rid of tadpole so only subadult and adult are left 
+  mutate( lake_id = as.character(lake_id)) %>% #change lake_id to a character class
+  group_by(lake_id) %>%
+  drop_na() %>% 
+  summarize_at(vars(amphibian_number), #sum amphibian numbers within lake_id groups
+               list(count = sum)) %>% 
+    slice_max(order_by = count, n = 5) %>% #keep the 5 lakes with highest frog count 
+    arrange(-count)    #sort the columns by amount of frogs
+    
+#renaming the lakes (I know there should be a better way to do this, but couldn't figure out...)
+rana_frogs$lake_id[rana_frogs$lake_id == "50183"] <- "Lake 50183" 
+rana_frogs$lake_id[rana_frogs$lake_id == "10223"] <- "Lake 10223"  
+rana_frogs$lake_id[rana_frogs$lake_id == "10329"] <- "Lake 10329"  
+rana_frogs$lake_id[rana_frogs$lake_id == "20196"] <- "Lake 20196"  
+rana_frogs$lake_id[rana_frogs$lake_id == "10225"] <- "Lake 10225"
+
+#graphing everything
+ggplot(rana_frogs, aes(y=count, x = fct_reorder(lake_id, count))) + #fct_reorder allows me to sort the lake_id from least to greatest
+  geom_col(fill="darkseagreen3") +
+  labs(x= "Lake ID", y = "Frog Count")
+  
 ```
+# Citation
 
+ Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3
