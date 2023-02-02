@@ -87,6 +87,15 @@ ggplot(rana_frogs, aes(y=count, x = fct_reorder(lake_id, count))) + #fct_reorder
   labs(x= "Lake ID", y = "Frog Count")
   
 ```
+Combine your two graphs into a single compound figure using the {patchwork} or {cowplot} package. Add a finalized figure caption that appears below the compound figure in your knitted html. Note: You might realize once you combine your graphs into a single compound figure, you need to update the formatting (e.g. move legends or instead directly label, etc.). You should customize as necessary to make it a professional final output.
+
+For Task 1, your knitted html should show: 
+Your organized code, with clear subsections and any useful descriptive text / annotation (e.g. if you wanted to highlight this as a code example for a prospective employer). Include an overview of the data and your exploration, and a citation for the data.
+Your finalized compound figure, with a figure caption.
+Make sure to suppress any messages & warnings, but include the setup chunk to show which packages you’ve loaded.
+
+
+
 # Citation
 
  Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3
