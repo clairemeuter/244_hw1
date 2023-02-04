@@ -1,0 +1,153 @@
+---
+title: "Assignment 1 Task 2: Model selection for seawater sample data"
+author: "Claire Meuter"
+date: "2023-02-03"
+output: html_document
+---
+
+```{r setup, include=TRUE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, collapse = TRUE)
+library(tidyverse)
+library(here)
+library(lubridate)
+library(janitor)
+library(ggplot2)
+library(patchwork)
+library(AICcmodavg)
+library(kableExtra)
+library(modelsummary)
+```
+## Overview
+This code creates and evaluates two multiple linear regression models that explores the relationship between oxygen saturation of seawater off California’s coast and several physical and chemical variables. The two explored models are: - Oxygen saturation as a function of water temperature, salinity, and phosphate concentration
+- Oxygen saturation as a function of water temp, salinity, phosphate concentration, and depth
+The performance of the two models were compared by AIC, BIC, and 10-fold cross validation. 
+
+## Data Overview 
+Data is sourced from CalCOFI cruises. From the CalCOFI site: “Since 1949, hydrographic and biological data of the California Current System have been collected on CalCOFI cruises. The 70+ year hydrographic time-series includes temperature, salinity, oxygen and phosphate observations. In 1961, nutrient analysis expanded to include silicate, nitrate and nitrite; in 1973, chlorophyll was added; in 1984, C14 primary productivity incubations were added; and in 1993, CTD profiling began.”
+
+## Data exploration, model building and selection 
+```{r}
+#read in the data 
+cal_sea <- read_csv(here("calcofi_seawater_samples.csv"))
+
+#create 2 models to predict oxygen saturation
+
+#Oxygen saturation as a function of water temperature, salinity, and phosphate concentration
+f1 <- o2sat ~ t_deg_c + salinity + po4u_m #creating a formula for ease 
+mdl1 <-lm(f1, cal_sea)
+
+# Oxygen saturation as a function of water temp, salinity, phosphate concentration, and depth.
+f2 <- o2sat ~ t_deg_c + salinity + po4u_m + depth_m #creating a formula for ease 
+mdl2 <-lm(o2sat ~ t_deg_c + salinity + po4u_m + depth_m, cal_sea)
+
+#using AIC to asses models
+AIC <- aictab(list(mdl1, mdl2),
+              modnames = c("Model 1", "Model 2")) %>% 
+  kbl(caption = "**Table 1.** AIC comparision of Model 1 and Model 2") %>%
+ kable_classic(full_width = TRUE, html_font = "Cambria") %>%
+  row_spec(0, align = "center", bold = TRUE, color = "black", background = "lightblue") %>%
+  row_spec(1, align = "center", bold = FALSE, color = "black", background = "seagreen")
+
+
+
+#using BIC to assess models
+BIC <- bictab(list(mdl1, mdl2),
+              modnames = c("Model 1", "Model 2")) %>% 
+  kbl(caption = "**Table 2.** BIC comparison of Model 1 and Model 2") %>%
+ kable_classic(full_width = TRUE, html_font = "Cambria") %>%
+  row_spec(0, align = "center", bold = TRUE, color = "black", background = "lightblue") %>%
+  row_spec(1, align = "center", bold = FALSE, color = "black", background = "seagreen")
+
+AIC 
+BIC
+```
+
+## 10-fold cross validation
+This code performs a ten-fold cross-validation on the two models, using root-mean-square error as the scoring method. 
+```{r}
+#creating a function for calculating root-mean-square error 
+calc_rmse <- function(x,y){
+  rmse <-(x-y)^2 %>% 
+    mean() %>% 
+    sqrt()
+  return(rmse)
+}
+
+folds <- 10
+fold_vec <- rep(1:folds, length.out = nrow(cal_sea))
+
+set.seed(444) ###same that we used in class
+
+sea_fold <- cal_sea %>%
+  mutate(group = sample(fold_vec, size = n(), replace = FALSE)) #n is size of the df, replace = FALSE guarantees we will end up with an exact distribution of 1s through 10s
+rmse_df <- data.frame() #create a blank data frame to store the results
+
+### first fold
+test_df <- sea_fold %>%
+  filter(group == 1)
+
+train_df <- sea_fold %>%
+  filter(group != 1)
+
+
+#Use the training dataset to create two linear models, based on models 1 and 2 from earlier.
+
+training_lm1 <-lm(f1, data = train_df)
+training_lm2 <- lm(f2, data = train_df)
+
+#creating my forloop 
+for(i in 1:folds) {
+  # i <- 1
+  kfold_test_df <- sea_fold %>%
+    filter(group == i)
+  kfold_train_df <- sea_fold %>%
+    filter(group != i)
+  
+  kfold_lm1 <- lm(f1, data = kfold_train_df)
+  kfold_lm2 <- lm(f2, data = kfold_train_df)
+
+  
+  ### NOTE: we can use a '.' to indicate the object piped into this
+  ### function.  This is a handy shortcut for tidyverse stuff, but could
+  ### also just call the object itself.
+  kfold_pred_df <- kfold_test_df %>%
+    mutate(mdl1 = predict(kfold_lm1, kfold_test_df),
+           mdl2 = predict(kfold_lm2, .))
+  kfold_rmse <- kfold_pred_df %>%
+    summarize(rmse_mdl1 = calc_rmse(mdl1, o2sat),
+              rmse_mdl2 = calc_rmse(mdl2, o2sat),
+              test_gp = i)
+  
+  rmse_df <- bind_rows(rmse_df, kfold_rmse)
+}
+
+rmse_df # the rmse of all the folds 
+
+rmse_df_mean <- rmse_df %>% # the mean of the rmse 
+  summarize(mean_rmse_mdl1 = mean(rmse_mdl1),
+            mean_rmse_mdl2 = mean(rmse_mdl2)) 
+
+rmse_df_mean %>% 
+  kbl(caption = "**Table 3.**Comparison of Means of RMSE between Model 1 and Model 2",
+      col.names = c("Mean RMSE of Model 1", "Mean RMSE of Model 2")) %>%
+ kable_classic(full_width = TRUE, html_font = "Cambria") %>%
+  row_spec(0, align = "center", bold = TRUE, color = "black", background = "lightblue") %>%
+  row_spec(1, align = "center", bold = FALSE, color = "black", background = "seagreen")
+
+```
+```{r}
+# our selected model is model 2, where Oxygen saturation is predicted as a function of water temp, salinity, phosphate concentration, and depth.
+final_mdl <- lm(f2, data = cal_sea)
+summary(final_mdl)
+```
+I selected Model 2 as my final model because it had both a lower AIC and BIC score. Model 2 also performed better with the 10-fold cross validation.  
+
+My final model:
+`r equatiomatic::extract_eq(final_mdl, wrap = TRUE)`
+
+and with coefficients in place:
+`r equatiomatic::extract_eq(final_mdl, wrap = TRUE, use_coefs = TRUE)`
+## Citation
+
+**Data citation:** CalCOFI data are available for use without restriction. Data downloaded from https://calcofi.org/ccdata.html.  Accessed 1/10/2022.
+

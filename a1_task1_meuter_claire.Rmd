@@ -1,13 +1,14 @@
 ---
-title: "a1_task1_meuter_claire"
+title: "Assignment 1, Task 1: Mountain Yellow-legged Frog"
 author: "Claire Meuter"
 date: "2023-01-26"
 output: html_document
 ---
 
-```{r setup, warning = FALSE, message = FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```{r setup, include=TRUE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, collapse = TRUE)
 library(tidyverse)
+library(readxl)
 library(here)
 library(lubridate)
 library(janitor)
@@ -15,28 +16,33 @@ library(ggplot2)
 library(patchwork)
 ```
 
+## Overview of data 
+This code explores, wrangles, and visualizes amphibian abundance data recorded by the Sierra Lakes Inventory Project. This data was collected from the Environmental Data Initiative (EDI) repository. As described from the Environmental Data Initiative repository: “The Sierra Lakes Inventory Project (SLIP) was a research endeavor that ran from 1995-2002 and has supported research and management of Sierra Nevada aquatic ecosystems and their terrestrial interfaces. We described the physical characteristics of and surveyed aquatic communities for >8,000 lentic water bodies in the southern Sierra Nevada, including lakes, ponds, marshes, and meadows.”
+
+Metadata on the Sierra Lakes Inventory Project can be found here: https://portal.edirepository.org/nis/metadataviewer?packageid=edi.577.2
+
+
+
+## Data exploration, wrangling, and graph building
+Task 1: Creating a graph of mountain yellow-legged frog (Rana muscosa) count each year and across all water bodies, by life stage excluding the ‘EggMass’ level.
 ```{r}
 #read in the data
-sierra_amp <- read_csv(here("sierra_amphibians.csv"))
-```
-#A graph of total mountain yellow-legged frog (Rana muscosa) count each year across all water bodies, by life stage excluding the ‘EggMass’ level. In other words, you should find the total number of adult, subadult, and tadpole yellow-legged frogs observed in the entire study region by life stage and year, but you will not use the lake ID or amphibian_location in your analyses as additional grouping variables. Hint: Convert the date to a date with the {lubridate} package, then pull just the year using the lubridate::year() function...then you can group by year to get counts. 
-```{r}
+sierra_amp <- read_excel(here("sierra_amphibians.xlsx"))
+
 #view class of our date column
 class(sierra_amp$survey_date)
-#this tells me it's a character, but we need it in date format
-sierra_amp$survey_date <- mdy(sierra_amp$survey_date)
+#this tells me it's a numeric, but I need it in date format
+sierra_amp$survey_date <- ymd(sierra_amp$survey_date)
 
-#Now check out the class again
+#Now I check out the class again
 class(sierra_amp$survey_date)
-#cool, now it's in date, so we can use the year function
+#Now it's in date, so we can use the year function
 
 sierra_amp$survey_date <- year(sierra_amp$survey_date)
 
-#cool, now sierra_amp only has year in survery_date column
-```
+#Now sierra_amp only has year in survery_date column
 
 #Now I'm going to clean the data to only include mountain yellow-legged frog (Rana muscosa) and exclude life stage  ‘EggMass’ level
-```{r}
 #from reading the metadata I know Rana muscosa is code RAMU
 
 rana_sierra <- sierra_amp %>%
@@ -51,15 +57,16 @@ rana_count <- rana_sierra %>%
                list(count=sum))
 
 #Now I'll make a graph 
-ggplot(rana_count, aes(fill=amphibian_life_stage, y= count, x=survey_date)) + scale_x_continuous(breaks = seq(from = 1995, to = 2002, by = 1)) + #making x axis annual with every year showing up 
-    geom_bar(position="dodge", stat="identity") + labs(y = "Count", x = "Survey Year", title = "Count of Mountain yellow-legged frog (Rana muscosa) by Life Stage", fill = "Life Stage") + theme_minimal()
+plot1 <- ggplot(rana_count, aes(fill=amphibian_life_stage, y= count, x=survey_date)) + scale_x_continuous(breaks = seq(from = 1995, to = 2002, by = 1)) + #making x axis annual with every year showing up 
+    geom_bar(position="stack", stat="identity") + labs(y = "Count", x = "Survey Year", fill = "Life Stage") + theme_minimal() +
+  theme(legend.position = c(0.2, 0.8))
 ```
-## I'll add a figure caption here later 
 
 
-### A column graph containing total counts (over all years of the study) of combined adult and subadult endangered mountain yellow-legged frogs (Rana muscosa) observed in the 5 lakes with the greatest total observed counts. In other words, this graph will have at least 5 columns (OK to have more if there are ties), with Lake ID (these aren’t specified in the dataset for confidentiality) as the categorical label on one axis, and total yellow-legged frog counts (adult + subadult counts) in the dataset on the other axis. Make sure they’re in high-to-low or low-to-high order by total yellow-legged frog counts. You should exclude tadpoles for this graph. Note: Consider reformatting the lake ID from just a number to a label like “Lake 10025”), then use fct_reorder to convert it to an ordered factor.
+
+Task 2: Creating a column graph containing total counts (over all years of the study) of combined adult and subadult endangered mountain yellow-legged frogs (Rana muscosa) observed in the 5 lakes with the greatest total observed counts.
 ```{r}
-#First I need to do some data wrangling to get my data ready to graph. I can use the rana_sierra dataset. Then I need to exclude tadpoles from the data, make sure survey date is being read as categorical, and reformate if not. Next, I need to sum the amphibian_number by lake_id, and keep the 5 lakes that had to most frog counts. 
+#First I need to do some data wrangling to get my data ready to graph. I can use the rana_sierra dataset. Then I need to exclude tadpoles from the data, make sure survey date is being read as categorical, and reformat if not. Next, I need to sum the amphibian_number by lake_id, and keep the 5 lakes that had to most frog counts. 
 
 class(rana_sierra$lake_id)
 #right now, class of lake_id is numeric, which I'll want to change
@@ -75,7 +82,7 @@ rana_frogs <- rana_sierra %>%
     slice_max(order_by = count, n = 5) %>% #keep the 5 lakes with highest frog count 
     arrange(-count)    #sort the columns by amount of frogs
     
-#renaming the lakes (I know there should be a better way to do this, but couldn't figure out...)
+#renaming the lakes 
 rana_frogs$lake_id[rana_frogs$lake_id == "50183"] <- "Lake 50183" 
 rana_frogs$lake_id[rana_frogs$lake_id == "10223"] <- "Lake 10223"  
 rana_frogs$lake_id[rana_frogs$lake_id == "10329"] <- "Lake 10329"  
@@ -83,20 +90,19 @@ rana_frogs$lake_id[rana_frogs$lake_id == "20196"] <- "Lake 20196"
 rana_frogs$lake_id[rana_frogs$lake_id == "10225"] <- "Lake 10225"
 
 #graphing everything
-ggplot(rana_frogs, aes(y=count, x = fct_reorder(lake_id, count))) + #fct_reorder allows me to sort the lake_id from least to greatest
-  geom_col(fill="darkseagreen3") +
-  labs(x= "Lake ID", y = "Frog Count")
+plot2 <- ggplot(rana_frogs, aes(y=count, x = fct_reorder(lake_id, count))) + #fct_reorder allows me to sort the lake_id from least to greatest
+  geom_col(fill="lightblue") +
+  labs(x= "Lake ID", y = "Frog Count")+ theme_minimal()
   
 ```
-Combine your two graphs into a single compound figure using the {patchwork} or {cowplot} package. Add a finalized figure caption that appears below the compound figure in your knitted html. Note: You might realize once you combine your graphs into a single compound figure, you need to update the formatting (e.g. move legends or instead directly label, etc.). You should customize as necessary to make it a professional final output.
 
-For Task 1, your knitted html should show: 
-Your organized code, with clear subsections and any useful descriptive text / annotation (e.g. if you wanted to highlight this as a code example for a prospective employer). Include an overview of the data and your exploration, and a citation for the data.
-Your finalized compound figure, with a figure caption.
-Make sure to suppress any messages & warnings, but include the setup chunk to show which packages you’ve loaded.
+## Compound figure
+Graph of count of Mountain yellow-legged frogs by life stage combined with graph of total counts of combined adult and subadult  mountain yellow-legged frogs (Rana muscosa) observed in the 5 lakes with the greatest total observed count.
+```{r, fig.height=7,fig.width=10}
+plot1+plot2 #using patchwork to knit my graphs together
+```
+**Figure 1:** Counts of mountain yellow-legged frogs (*Rana mucosa*) recorded in the southern Sierra Nevada by the Sierra Lakes Inventory Project between 1995 and 2002. *Left:* Annual counts of *Rana mucosa*, differentiated by life stage using color codes. *Right:* Total number of *Rana mucosa* in the 5 lakes with the highest number of adult and subadult frogs observed. Source: Knapp et al. 2020.
 
+## Citation
 
-
-# Citation
-
- Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3
+**Data citation:** Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3
